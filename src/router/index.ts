@@ -1,0 +1,133 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { getAuth } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/config/firebase'
+import HomeView from '../views/HomeView.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView,
+    },
+    {
+      path: '/auth',
+      name: 'auth',
+      component: () => import('../views/AuthView.vue'),
+    },
+    {
+      path: '/login',
+      redirect: '/auth',
+    },
+    {
+      path: '/register',
+      redirect: '/auth',
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../views/DashboardView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/products',
+      name: 'products',
+      component: () => import('../views/ProductCatalogView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/checkout',
+      name: 'checkout',
+      component: () => import('../views/CheckoutView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: () => import('../views/AboutView.vue'),
+    },
+    // Admin Routes
+    {
+      path: '/admin',
+      component: () => import('../layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+      children: [
+        {
+          path: '',
+          name: 'admin-dashboard',
+          component: () => import('../views/admin/AdminDashboard.vue'),
+        },
+        {
+          path: 'products',
+          name: 'admin-products',
+          component: () => import('../views/admin/ProductsManagement.vue'),
+        },
+        {
+          path: 'orders',
+          name: 'admin-orders',
+          component: () => import('../views/admin/OrdersManagement.vue'),
+        },
+        {
+          path: 'users',
+          name: 'admin-users',
+          component: () => import('../views/admin/UsersManagement.vue'),
+        },
+        {
+          path: 'commissions',
+          name: 'admin-commissions',
+          component: () => import('../views/admin/AdminDashboard.vue'), // Placeholder
+        },
+        {
+          path: 'reports',
+          name: 'admin-reports',
+          component: () => import('../views/admin/AdminDashboard.vue'), // Placeholder
+        },
+      ],
+    },
+  ],
+})
+
+// Navigation Guard
+router.beforeEach(async (to, from, next) => {
+  const auth = getAuth()
+  const currentUser = auth.currentUser
+
+  // Check if route requires authentication
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    if (!currentUser) {
+      // Not logged in, redirect to auth
+      next('/auth')
+      return
+    }
+
+    // Check if route requires admin
+    if (to.matched.some(record => record.meta.requiresAdmin)) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          if (userData.role === 'admin') {
+            next()
+          } else {
+            // Not admin, redirect to dashboard
+            alert('No tienes permisos para acceder al panel de administración')
+            next('/dashboard')
+          }
+        } else {
+          next('/auth')
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err)
+        next('/dashboard')
+      }
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
+})
+
+export default router
