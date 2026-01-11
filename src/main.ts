@@ -18,3 +18,4 @@ const userStore = useUserStore()
 userStore.initAuthListener()
 
 app.mount('#app')
+// Force rebuild dom 11 ene 2026 02:49:37 CST
