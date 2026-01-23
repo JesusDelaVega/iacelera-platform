@@ -134,12 +134,14 @@ export function useAuth() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       currentUser.value = userCredential.user
 
-      // Update last login
-      await setDoc(
+      // Update last login (non-blocking - don't fail login if this fails)
+      setDoc(
         doc(db, 'users', userCredential.user.uid),
         { lastLogin: new Date() },
         { merge: true }
-      )
+      ).catch((err) => {
+        console.warn('Could not update last login (permissions issue):', err.message)
+      })
 
       return userCredential.user
     } catch (err: any) {
